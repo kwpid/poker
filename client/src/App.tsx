@@ -16,7 +16,7 @@ type Screen = 'auth' | 'menu' | 'queue' | 'game' | 'settings' | 'stats';
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('auth');
   const { user, loading } = useAuth();
-  const { isInQueue, currentGame } = useGame();
+  const { isInQueue, currentGame, setNavigation } = useGame();
 
   useEffect(() => {
     if (loading) return;
@@ -35,6 +35,11 @@ function App() {
   const handleNavigate = (screen: Screen) => {
     setCurrentScreen(screen);
   };
+
+  // Connect game navigation to screen navigation
+  useEffect(() => {
+    setNavigation(handleNavigate);
+  }, [setNavigation]);
 
   if (loading) {
     return (
