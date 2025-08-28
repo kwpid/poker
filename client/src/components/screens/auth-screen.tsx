@@ -7,46 +7,13 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 
 export function AuthScreen() {
-  const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
     username: ''
   });
   const [loading, setLoading] = useState(false);
   
-  const { login, signup, loginWithGoogle, completeGoogleSignup, needsUsername, firebaseUser } = useAuth();
+  const { loginWithGoogle, completeGoogleSignup, needsUsername, firebaseUser } = useAuth();
   const { toast } = useToast();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      if (isLogin) {
-        await login(formData.email, formData.password);
-        toast({ title: "Welcome back!", description: "Successfully logged in." });
-      } else {
-        if (!formData.username || formData.username.length < 3 || formData.username.length > 20) {
-          throw new Error('Username must be 3-20 characters');
-        }
-        if (!/^[a-zA-Z0-9]+$/.test(formData.username)) {
-          throw new Error('Username must contain only English letters and numbers, no spaces');
-        }
-        
-        await signup(formData.email, formData.password, formData.username);
-        toast({ title: "Account created!", description: "Welcome to PokerElo!" });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "An error occurred",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -166,96 +133,22 @@ export function AuthScreen() {
               <span className="text-primary">Poker</span><span className="text-accent">Elo</span>
             </h1>
             <p className="text-muted-foreground">Competitive Online Poker</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label className="block text-sm font-medium mb-2">
-                {isLogin ? 'Email/Username' : 'Email'}
-              </Label>
-              <Input
-                type={isLogin ? 'text' : 'email'}
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder={isLogin ? 'Enter email or username' : 'Enter email'}
-                className="w-full"
-                data-testid="input-email"
-                required
-              />
-            </div>
-
-            {!isLogin && (
-              <div>
-                <Label className="block text-sm font-medium mb-2">Username*</Label>
-                <Input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  placeholder="3-20 characters, English only"
-                  className="w-full"
-                  data-testid="input-username"
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Must be unique, 3-20 characters, English only, no spaces
-                </p>
-              </div>
-            )}
-
-            <div>
-              <Label className="block text-sm font-medium mb-2">Password</Label>
-              <Input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Enter password"
-                className="w-full"
-                data-testid="input-password"
-                required
-              />
-            </div>
-
-            <Button 
-              type="submit" 
-              className="w-full neon-glow"
-              disabled={loading}
-              data-testid={isLogin ? "button-login" : "button-signup"}
-            >
-              <i className={`fas ${isLogin ? 'fa-sign-in-alt' : 'fa-user-plus'} mr-2`}></i>
-              {loading ? 'Please wait...' : (isLogin ? 'Login' : 'Create Account')}
-            </Button>
-          </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-card text-muted-foreground">or</span>
-            </div>
+            <p className="text-sm text-muted-foreground mt-2">Sign in with Google to get started</p>
           </div>
 
           <Button
             type="button"
-            variant="secondary"
-            className="w-full"
+            className="w-full neon-glow mb-4"
             onClick={handleGoogleLogin}
             disabled={loading}
             data-testid="button-google-login"
           >
-            <i className="fab fa-google mr-2"></i>Continue with Google
+            <i className="fab fa-google mr-2"></i>
+            {loading ? 'Signing in...' : 'Continue with Google'}
           </Button>
 
-          <div className="text-center mt-6">
-            <Button
-              type="button"
-              variant="link"
-              className="text-primary hover:text-primary/80 text-sm"
-              onClick={() => setIsLogin(!isLogin)}
-              data-testid="button-toggle-auth"
-            >
-              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Login"}
-            </Button>
+          <div className="text-center text-xs text-muted-foreground">
+            <p>By signing in, you agree to play fair and follow the community guidelines.</p>
           </div>
         </CardContent>
       </Card>
