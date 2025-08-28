@@ -1,0 +1,63 @@
+in this, i want to create a online Poker game called PokerElo
+this game will have casual and ranked 
+menu screen:
+have buttons: Casual, Ranked, Inventory (Coming soon) Tutorial, and then smaler buttons for Settings, Leaderboards (coming soon), and Stats
+have a login / sign up screen too
+usernames must be 3-20 characters, unqieu, english only and no spaces
+email is optional
+password is required
+google signup is also allowed, but the site should ask for a username as well
+with this, email/password and google login will be enabled on the auth for ifrebase
+
+Game:
+both poker casual and ranked need 2-6 players. each player starts wit 500 chips, they can hit stand and all other poker stuff, as well as fold.
+The game goes on until one person has all the chips, in which they are the winner. THe poker system uses a final point system to determine elo changes. winner gets most elo, seocnd gets second most elo, third gets third most, while 4-6 get little to none
+
+
+when a player queues, ahve a queue screen that searcehs for a game for 3-20 seconds (higher elo = higher wait time), realistic queue
+poker system shows usernames and such
+
+
+for ranked:
+each season lasts a month (starting on the first of each month), for now we'll have a pre-season system, so season 1 starts on September 1, 2025. and the season number increments each month, with the season at the top of the page on th emenu screen (have a countdown in days and hours and minutes for when a new season starts)
+Each season, the players ranks get soft reset (like rocket league), and theyll need to place 5 placement matches for ranked, which will determine their starting rank
+Ranks: Bronze, Silver, Gold (around 400 ish mmr), Platinum, Diamond, Champion, Grand Champion
+Each rank has 3 divisions, expect for Grand Champion (so theres Gold I, II, III, diamond I, II, III, etc)
+
+
+Season rewards:
+we'll have a season reward system. Each time it starts at bronze, they need 10 rakned wins to get to the next season reward, then another 10, up to their current rank. Example: if theyre diamond, highest reward they can get is Diamond until they get to champion and win 10 more times.
+
+ensure to have ui elements to show season rewards, placements, etc
+
+ensurte the site has a dark mode theme
+I want this done in html/css/js, do not overocmplicate it.
+UI design: modern, techy but appealing to competitive gameplay
+
+Note:
+- use a firebase database for the user login and signups, as well as game stuff
+- databases should be created dynamically, so when i signup for the first tiem, it creates the databse
+firebase skd:
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyAig5NZUSZQBpvc3mQk4TfuCOfVr2DfaUE",
+    authDomain: "pokeronlinev2.firebaseapp.com",
+    projectId: "pokeronlinev2",
+    storageBucket: "pokeronlinev2.firebasestorage.app",
+    messagingSenderId: "550772836623",
+    appId: "1:550772836623:web:96ebcf43ade04b9aa8967a",
+    measurementId: "G-Z8HC47ZFGM"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
