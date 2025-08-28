@@ -8,9 +8,19 @@ export class GameWebSocket {
   connect() {
     if (this.socket?.readyState === WebSocket.OPEN) return;
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    // Handle Replit environment WebSocket connection
+    let wsUrl;
+    if (window.location.hostname.includes('replit.dev')) {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      wsUrl = `${protocol}//${window.location.host}/ws`;
+    } else {
+      // Development fallback
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const port = window.location.port || (protocol === "wss:" ? "443" : "80");
+      wsUrl = `${protocol}//${window.location.hostname}:${port}/ws`;
+    }
     
+    console.log('Attempting WebSocket connection to:', wsUrl);
     this.socket = new WebSocket(wsUrl);
 
     this.socket.onopen = () => {
