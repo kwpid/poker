@@ -10,8 +10,13 @@ class GameService {
 
   async joinQueue(ws: WebSocket, gameType: 'casual' | 'ranked', userId: string) {
     try {
+      console.log(`Attempting to join queue: ${gameType} for user ${userId}`);
+      
       const user = await storage.getUserByFirebaseUid(userId);
+      console.log('Found user:', user ? user.username : 'NOT FOUND');
+      
       if (!user) {
+        console.log('User not found in storage');
         this.sendError(ws, 'User not found');
         return;
       }
@@ -26,13 +31,17 @@ class GameService {
         gameType,
         mmr: user.mmr,
       });
+      
+      console.log('Created queue entry:', queueEntry);
 
       this.connectedClients.set(ws, userId);
       this.userConnections.set(userId, ws);
 
+      console.log('Sending queue_joined message');
       this.sendMessage(ws, 'queue_joined', queueEntry);
 
       // Try to match players
+      console.log('Attempting matchmaking...');
       await this.tryMatchmaking(gameType);
     } catch (error) {
       console.error('Join queue error:', error);
@@ -369,8 +378,11 @@ class GameService {
   }
 
   private sendMessage(ws: WebSocket, type: string, payload: any) {
+    console.log(`Sending WebSocket message: ${type}`, payload);
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type, payload }));
+    } else {
+      console.log('WebSocket not open, cannot send message');
     }
   }
 
