@@ -7,6 +7,11 @@ export class GameWebSocket {
 
   connect() {
     if (this.socket?.readyState === WebSocket.OPEN) return;
+    
+    // Close existing socket if not in a good state
+    if (this.socket?.readyState === WebSocket.CONNECTING) {
+      this.socket.close();
+    }
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -53,7 +58,7 @@ export class GameWebSocket {
       setTimeout(() => {
         console.log(`Attempting to reconnect... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
         this.connect();
-      }, this.reconnectDelay * this.reconnectAttempts);
+      }, Math.min(this.reconnectDelay * this.reconnectAttempts, 5000)); // Cap at 5 seconds
     }
   }
 

@@ -14,7 +14,7 @@ export function useGame() {
   useEffect(() => {
     gameSocket.connect();
 
-    gameSocket.on('queue_joined', (data: QueueEntry) => {
+    const handleQueueJoined = (data: QueueEntry) => {
       console.log('Queue joined:', data);
       setIsInQueue(true);
       setQueueData(data);
@@ -22,9 +22,9 @@ export function useGame() {
       if (navigationCallback) {
         navigationCallback('queue');
       }
-    });
+    };
 
-    gameSocket.on('queue_left', () => {
+    const handleQueueLeft = () => {
       console.log('Queue left');
       setIsInQueue(false);
       setQueueData(null);
@@ -32,9 +32,9 @@ export function useGame() {
       if (navigationCallback) {
         navigationCallback('menu');
       }
-    });
+    };
 
-    gameSocket.on('game_found', (game: Game) => {
+    const handleGameFound = (game: Game) => {
       console.log('Game found:', game);
       setIsInQueue(false);
       setQueueData(null);
@@ -43,20 +43,30 @@ export function useGame() {
       if (navigationCallback) {
         navigationCallback('game');
       }
-    });
+    };
 
-    gameSocket.on('game_updated', (game: Game) => {
+    const handleGameUpdated = (game: Game) => {
       setCurrentGame(game);
-    });
+    };
 
-    gameSocket.on('game_ended', () => {
+    const handleGameEnded = () => {
       setCurrentGame(null);
-    });
+    };
+
+    gameSocket.on('queue_joined', handleQueueJoined);
+    gameSocket.on('queue_left', handleQueueLeft);
+    gameSocket.on('game_found', handleGameFound);
+    gameSocket.on('game_updated', handleGameUpdated);
+    gameSocket.on('game_ended', handleGameEnded);
 
     return () => {
-      gameSocket.disconnect();
+      gameSocket.off('queue_joined', handleQueueJoined);
+      gameSocket.off('queue_left', handleQueueLeft);
+      gameSocket.off('game_found', handleGameFound);
+      gameSocket.off('game_updated', handleGameUpdated);
+      gameSocket.off('game_ended', handleGameEnded);
     };
-  }, []);
+  }, [navigationCallback]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;

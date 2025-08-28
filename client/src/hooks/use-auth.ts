@@ -86,6 +86,16 @@ export function useAuth() {
   };
 
   const syncUserWithServer = async (userData: User) => {
+    // Only sync once per session to avoid excessive calls
+    const lastSyncKey = `lastSync_${userData.firebaseUid}`;
+    const lastSync = sessionStorage.getItem(lastSyncKey);
+    const now = Date.now();
+    
+    // Skip if synced within the last 5 minutes
+    if (lastSync && (now - parseInt(lastSync)) < 5 * 60 * 1000) {
+      return;
+    }
+    
     try {
       const response = await fetch('/api/user/sync', {
         method: 'POST',
@@ -103,6 +113,7 @@ export function useAuth() {
         console.error('Failed to sync user with server');
       } else {
         console.log('User synced with server successfully');
+        sessionStorage.setItem(lastSyncKey, now.toString());
       }
     } catch (error) {
       console.error('User sync error:', error);

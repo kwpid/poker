@@ -382,8 +382,15 @@ class GameService {
       this.userConnections.delete(userId);
       this.connectedClients.delete(ws);
       
-      // Remove from queue if in queue
-      storage.removeFromQueue(userId);
+      // Don't immediately remove from queue - give them time to reconnect
+      // Only remove from queue after 10 seconds of no reconnection
+      setTimeout(async () => {
+        // Check if they reconnected by seeing if they have a new connection
+        if (!this.userConnections.has(userId)) {
+          await storage.removeFromQueue(userId);
+          console.log(`Removed ${userId} from queue after disconnect timeout`);
+        }
+      }, 10000);
     }
   }
 
