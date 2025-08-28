@@ -8,27 +8,15 @@ export class GameWebSocket {
   connect() {
     if (this.socket?.readyState === WebSocket.OPEN) return;
 
-    // Construct WebSocket URL - handle both development and production environments
-    let wsUrl;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
     
-    // Check if we're in a Replit environment or if port is defined
-    if (window.location.port && window.location.port !== '80' && window.location.port !== '443') {
-      // Development environment with explicit port
-      wsUrl = `${protocol}//${window.location.hostname}:${window.location.port}/ws`;
-    } else {
-      // Production environment or default ports
-      wsUrl = `${protocol}//${window.location.host}/ws`;
-    }
-    
-    console.log('Attempting WebSocket connection to:', wsUrl);
+    console.log('WebSocket connecting to:', wsUrl);
     
     try {
       this.socket = new WebSocket(wsUrl);
     } catch (error) {
-      console.error('Failed to create WebSocket:', error);
-      // Try fallback connection after a delay
-      setTimeout(() => this.attemptReconnect(), 1000);
+      console.error('WebSocket creation failed:', error);
       return;
     }
 
