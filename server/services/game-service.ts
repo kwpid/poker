@@ -7,6 +7,7 @@ class GameService {
   private connectedClients: Map<WebSocket, string> = new Map(); // ws -> userId
   private userConnections: Map<string, WebSocket> = new Map(); // userId -> ws
   private gameConnections: Map<string, Set<WebSocket>> = new Map(); // gameId -> Set<ws>
+  private turnTimers: Map<string, NodeJS.Timeout> = new Map(); // gameId -> timer
 
   async joinQueue(ws: WebSocket, gameType: 'casual' | 'ranked', userId: string, userData?: any) {
     try {
@@ -72,35 +73,49 @@ class GameService {
     const queueEntries = await storage.getQueueEntries(gameType);
     
     if (queueEntries.length >= 2) {
-      // For casual: match any 2-6 players
-      // For ranked: match players with similar MMR
-      let playersToMatch: QueueEntry[] = [];
+      // Wait a bit to see if more players join before starting the game
+      console.log(`Found ${queueEntries.length} players, waiting 10 seconds for more...`);
+      
+      setTimeout(async () => {
+        const updatedQueueEntries = await storage.getQueueEntries(gameType);
+        console.log(`After waiting: ${updatedQueueEntries.length} players in queue`);
+        
+        if (updatedQueueEntries.length < 2) {
+          console.log('Not enough players after waiting, cancelling match');
+          return;
+        }
+        
+        // For casual: match any 2-6 players
+        // For ranked: match players with similar MMR
+        let playersToMatch: QueueEntry[] = [];
 
-      if (gameType === 'casual') {
-        playersToMatch = queueEntries.slice(0, Math.min(6, queueEntries.length));
-      } else {
-        // Ranked matchmaking - group by MMR
-        const sortedEntries = queueEntries.sort((a, b) => a.mmr - b.mmr);
-        for (let i = 0; i < sortedEntries.length - 1; i++) {
-          const currentGroup = [sortedEntries[i]];
-          
-          for (let j = i + 1; j < sortedEntries.length; j++) {
-            if (Math.abs(sortedEntries[j].mmr - sortedEntries[i].mmr) <= 200) {
-              currentGroup.push(sortedEntries[j]);
-              if (currentGroup.length >= 6) break;
+        if (gameType === 'casual') {
+          playersToMatch = updatedQueueEntries.slice(0, Math.min(6, updatedQueueEntries.length));
+        } else {
+          // Ranked matchmaking - group by MMR
+          const sortedEntries = updatedQueueEntries.sort((a, b) => a.mmr - b.mmr);
+          for (let i = 0; i < sortedEntries.length - 1; i++) {
+            const currentGroup = [sortedEntries[i]];
+            
+            for (let j = i + 1; j < sortedEntries.length; j++) {
+              if (Math.abs(sortedEntries[j].mmr - sortedEntries[i].mmr) <= 200) {
+                currentGroup.push(sortedEntries[j]);
+                if (currentGroup.length >= 6) break;
+              }
+            }
+            
+            if (currentGroup.length >= 2) {
+              playersToMatch = currentGroup;
+              break;
             }
           }
-          
-          if (currentGroup.length >= 2) {
-            playersToMatch = currentGroup;
-            break;
-          }
         }
-      }
 
-      if (playersToMatch.length >= 2) {
-        await this.createGame(playersToMatch, gameType);
-      }
+        if (playersToMatch.length >= 2) {
+          console.log(`Starting game with ${playersToMatch.length} players`);
+          await this.createGame(playersToMatch, gameType);
+        }
+      }, 10000); // Wait 10 seconds
     }
   }
 
@@ -195,6 +210,13 @@ class GameService {
       const player = game.players[playerIndex];
       let updatedGame = { ...game };
 
+      // Broadcast action to all players
+      this.broadcastToGame(gameId, 'player_action', {
+        player: player.username,
+        action,
+        amount
+      });
+
       switch (action) {
         case 'fold':
           updatedGame.players[playerIndex] = {
@@ -230,8 +252,9 @@ class GameService {
           return;
       }
 
-      // Move to next player
+      // Move to next player and start turn timer
       updatedGame.currentTurn = this.getNextActivePlayer(updatedGame);
+      this.startTurnTimer(gameId, updatedGame.currentTurn);
 
       // Check if round is complete
       if (this.isRoundComplete(updatedGame)) {
@@ -308,7 +331,8 @@ class GameService {
 
   private isGameComplete(game: Game): boolean {
     const activePlayers = game.players.filter(p => !p.isFolded);
-    return activePlayers.length <= 1 || game.round === 'showdown';
+    // Game ends when only one player left or showdown round is complete
+    return activePlayers.length <= 1 || (game.round === 'showdown' && activePlayers.every(p => p.hasActed));
   }
 
   private async endGame(game: Game) {
@@ -346,8 +370,71 @@ class GameService {
       this.broadcastToGame(game.id, 'game_ended', completedGame);
     }
 
-    // Clean up game connections
+    // Clean up game connections and timers
     this.gameConnections.delete(game.id);
+    const timer = this.turnTimers.get(game.id);
+    if (timer) {
+      clearTimeout(timer);
+      this.turnTimers.delete(game.id);
+    }
+  }
+
+  private startTurnTimer(gameId: string, playerIndex: number) {
+    // Clear any existing timer
+    const existingTimer = this.turnTimers.get(gameId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    // Start 15-second timer
+    const timer = setTimeout(async () => {
+      console.log(`Turn timer expired for player ${playerIndex} in game ${gameId}`);
+      
+      const game = await storage.getGame(gameId);
+      if (game && game.currentTurn === playerIndex) {
+        // Auto-fold the player who didn't act in time
+        const player = game.players[playerIndex];
+        const updatedGame = {
+          ...game,
+          players: game.players.map((p, i) => 
+            i === playerIndex ? { ...p, isFolded: true, hasActed: true } : p
+          )
+        };
+
+        // Broadcast timeout action
+        this.broadcastToGame(gameId, 'player_action', {
+          player: player.username,
+          action: 'timeout_fold',
+          amount: 0
+        });
+
+        // Continue game logic
+        updatedGame.currentTurn = this.getNextActivePlayer(updatedGame);
+        
+        if (this.isRoundComplete(updatedGame)) {
+          const progressedGame = await this.progressRound(updatedGame);
+          await storage.updateGame(gameId, progressedGame);
+          this.broadcastToGame(gameId, 'game_updated', progressedGame);
+          this.startTurnTimer(gameId, progressedGame.currentTurn);
+        } else {
+          await storage.updateGame(gameId, updatedGame);
+          this.broadcastToGame(gameId, 'game_updated', updatedGame);
+          this.startTurnTimer(gameId, updatedGame.currentTurn);
+        }
+
+        if (this.isGameComplete(updatedGame)) {
+          await this.endGame(updatedGame);
+        }
+      }
+    }, 15000); // 15 seconds
+
+    this.turnTimers.set(gameId, timer);
+    
+    // Broadcast turn timer start
+    this.broadcastToGame(gameId, 'turn_timer_start', {
+      playerIndex,
+      timeLeft: 15
+    });
   }
 
   private determineWinner(players: any[]): any {

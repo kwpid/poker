@@ -10,6 +10,8 @@ export function useGame() {
   const [currentGame, setCurrentGame] = useState<Game | null>(null);
   const [queueTime, setQueueTime] = useState(0);
   const [navigationCallback, setNavigationCallback] = useState<((screen: 'auth' | 'menu' | 'queue' | 'game' | 'settings' | 'stats') => void) | null>(null);
+  const [turnTimeLeft, setTurnTimeLeft] = useState(0);
+  const [gameNotifications, setGameNotifications] = useState<string[]>([]);
 
   useEffect(() => {
     gameSocket.connect();
@@ -51,6 +53,47 @@ export function useGame() {
 
     const handleGameEnded = () => {
       setCurrentGame(null);
+      setTurnTimeLeft(0);
+      setGameNotifications([]);
+    };
+
+    const handlePlayerAction = (data: any) => {
+      const { player, action, amount } = data;
+      let message = '';
+      
+      switch (action) {
+        case 'fold':
+          message = `${player} folded`;
+          break;
+        case 'check':
+          message = `${player} checked`;
+          break;
+        case 'bet':
+          message = `${player} bet ${amount}`;
+          break;
+        case 'timeout_fold':
+          message = `${player} timed out and folded`;
+          break;
+      }
+      
+      if (message) {
+        setGameNotifications(prev => [...prev.slice(-4), message]); // Keep last 5 notifications
+      }
+    };
+
+    const handleTurnTimerStart = (data: any) => {
+      setTurnTimeLeft(data.timeLeft);
+      
+      // Countdown timer
+      const timer = setInterval(() => {
+        setTurnTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     };
 
     gameSocket.on('queue_joined', handleQueueJoined);
@@ -58,6 +101,8 @@ export function useGame() {
     gameSocket.on('game_found', handleGameFound);
     gameSocket.on('game_updated', handleGameUpdated);
     gameSocket.on('game_ended', handleGameEnded);
+    gameSocket.on('player_action', handlePlayerAction);
+    gameSocket.on('turn_timer_start', handleTurnTimerStart);
 
     return () => {
       gameSocket.off('queue_joined', handleQueueJoined);
@@ -65,6 +110,8 @@ export function useGame() {
       gameSocket.off('game_found', handleGameFound);
       gameSocket.off('game_updated', handleGameUpdated);
       gameSocket.off('game_ended', handleGameEnded);
+      gameSocket.off('player_action', handlePlayerAction);
+      gameSocket.off('turn_timer_start', handleTurnTimerStart);
     };
   }, [navigationCallback]);
 
@@ -72,13 +119,22 @@ export function useGame() {
     let interval: NodeJS.Timeout;
     
     if (isInQueue) {
+      console.log('Starting queue timer');
       interval = setInterval(() => {
-        setQueueTime(prev => prev + 1);
+        setQueueTime(prev => {
+          console.log('Queue time increment:', prev + 1);
+          return prev + 1;
+        });
       }, 1000);
+    } else {
+      console.log('Stopping queue timer, isInQueue:', isInQueue);
     }
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (interval) {
+        console.log('Clearing queue timer interval');
+        clearInterval(interval);
+      }
     };
   }, [isInQueue]);
 
@@ -127,6 +183,8 @@ export function useGame() {
     queueData,
     currentGame,
     queueTime,
+    turnTimeLeft,
+    gameNotifications,
     joinQueue,
     leaveQueue,
     makeMove,

@@ -9,7 +9,7 @@ import { PokerTable } from '@/components/game/poker-table';
 
 export function GameScreen() {
   const { user } = useAuth();
-  const { currentGame, makeMove, leaveGame } = useGame();
+  const { currentGame, makeMove, leaveGame, turnTimeLeft, gameNotifications } = useGame();
   const [betAmount, setBetAmount] = useState([50]);
 
   if (!currentGame) {
@@ -22,6 +22,7 @@ export function GameScreen() {
 
   const currentPlayer = currentGame.players.find(p => p.userId === user?.firebaseUid);
   const maxBet = currentPlayer?.chips || 0;
+  const isMyTurn = currentGame.players[currentGame.currentTurn]?.userId === user?.firebaseUid;
 
   const handleFold = () => {
     makeMove('fold');
@@ -66,6 +67,15 @@ export function GameScreen() {
                     {currentGame.pot}
                   </div>
                 </div>
+                
+                {isMyTurn && turnTimeLeft > 0 && (
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground">Your Turn</div>
+                    <div className={`text-xl font-bold ${turnTimeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-primary'}`} data-testid="turn-timer">
+                      {turnTimeLeft}s
+                    </div>
+                  </div>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -79,6 +89,22 @@ export function GameScreen() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Game Notifications */}
+        {gameNotifications.length > 0 && (
+          <Card className="glass-card mb-4">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-medium mb-2">Recent Actions</h3>
+              <div className="space-y-1">
+                {gameNotifications.map((notification, index) => (
+                  <div key={index} className="text-sm text-muted-foreground animate-fade-in">
+                    {notification}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Poker Table */}
         <PokerTable game={currentGame} />
@@ -117,6 +143,7 @@ export function GameScreen() {
                 <Button
                   variant="destructive"
                   onClick={handleFold}
+                  disabled={!isMyTurn}
                   data-testid="button-fold"
                 >
                   <i className="fas fa-times mr-2"></i>Fold
@@ -124,6 +151,7 @@ export function GameScreen() {
                 <Button
                   variant="secondary"
                   onClick={handleCheck}
+                  disabled={!isMyTurn}
                   data-testid="button-check"
                 >
                   <i className="fas fa-check mr-2"></i>Check
@@ -131,7 +159,7 @@ export function GameScreen() {
                 <Button
                   className="neon-glow"
                   onClick={handleBet}
-                  disabled={betAmount[0] <= 0}
+                  disabled={!isMyTurn || betAmount[0] <= 0}
                   data-testid="button-bet"
                 >
                   <i className="fas fa-coins mr-2"></i>Bet
