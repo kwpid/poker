@@ -12,6 +12,8 @@ export function useGame() {
   const [navigationCallback, setNavigationCallback] = useState<((screen: 'auth' | 'menu' | 'queue' | 'game' | 'settings' | 'stats') => void) | null>(null);
   const [turnTimeLeft, setTurnTimeLeft] = useState(0);
   const [gameNotifications, setGameNotifications] = useState<string[]>([]);
+  const [queueCount, setQueueCount] = useState(0);
+  const [queuePlayers, setQueuePlayers] = useState<string[]>([]);
 
   useEffect(() => {
     gameSocket.connect();
@@ -96,6 +98,11 @@ export function useGame() {
       }, 1000);
     };
 
+    const handleQueueCountUpdate = (data: any) => {
+      setQueueCount(data.count);
+      setQueuePlayers(data.players || []);
+    };
+
     gameSocket.on('queue_joined', handleQueueJoined);
     gameSocket.on('queue_left', handleQueueLeft);
     gameSocket.on('game_found', handleGameFound);
@@ -103,6 +110,7 @@ export function useGame() {
     gameSocket.on('game_ended', handleGameEnded);
     gameSocket.on('player_action', handlePlayerAction);
     gameSocket.on('turn_timer_start', handleTurnTimerStart);
+    gameSocket.on('queue_count_update', handleQueueCountUpdate);
 
     return () => {
       gameSocket.off('queue_joined', handleQueueJoined);
@@ -112,6 +120,7 @@ export function useGame() {
       gameSocket.off('game_ended', handleGameEnded);
       gameSocket.off('player_action', handlePlayerAction);
       gameSocket.off('turn_timer_start', handleTurnTimerStart);
+      gameSocket.off('queue_count_update', handleQueueCountUpdate);
     };
   }, [navigationCallback]);
 
@@ -185,6 +194,8 @@ export function useGame() {
     queueTime,
     turnTimeLeft,
     gameNotifications,
+    queueCount,
+    queuePlayers,
     joinQueue,
     leaveQueue,
     makeMove,

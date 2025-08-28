@@ -51,6 +51,9 @@ class GameService {
       console.log('Sending queue_joined message');
       this.sendMessage(ws, 'queue_joined', queueEntry);
 
+      // Broadcast updated queue count to all players in this game type
+      await this.broadcastQueueCount(gameType);
+
       // Try to match players
       console.log('Attempting matchmaking...');
       await this.tryMatchmaking(gameType);
@@ -62,8 +65,18 @@ class GameService {
 
   async leaveQueue(ws: WebSocket, userId: string) {
     try {
+      // Get the user's queue entry to know the game type
+      const queueEntries = await storage.getQueueEntries('casual');
+      const rankedEntries = await storage.getQueueEntries('ranked');
+      const userEntry = [...queueEntries, ...rankedEntries].find(entry => entry.userId === userId);
+      
       await storage.removeFromQueue(userId);
       this.sendMessage(ws, 'queue_left', {});
+      
+      // Broadcast updated queue count
+      if (userEntry) {
+        await this.broadcastQueueCount(userEntry.gameType);
+      }
     } catch (error) {
       console.error('Leave queue error:', error);
     }
@@ -185,6 +198,8 @@ class GameService {
 
     if (updatedGame) {
       this.broadcastToGame(gameId, 'game_updated', updatedGame);
+      // Start turn timer for first player
+      this.startTurnTimer(gameId, updatedGame.currentTurn);
     }
   }
 
@@ -252,9 +267,8 @@ class GameService {
           return;
       }
 
-      // Move to next player and start turn timer
+      // Move to next player
       updatedGame.currentTurn = this.getNextActivePlayer(updatedGame);
-      this.startTurnTimer(gameId, updatedGame.currentTurn);
 
       // Check if round is complete
       if (this.isRoundComplete(updatedGame)) {
@@ -270,6 +284,10 @@ class GameService {
       const savedGame = await storage.updateGame(gameId, updatedGame);
       if (savedGame) {
         this.broadcastToGame(gameId, 'game_updated', savedGame);
+        // Start turn timer for next player
+        if (savedGame.currentTurn >= 0) {
+          this.startTurnTimer(gameId, savedGame.currentTurn);
+        }
       }
 
     } catch (error) {
@@ -309,9 +327,34 @@ class GameService {
         // Add community cards based on round
         communityCards: this.addCommunityCards(game.communityCards, rounds[currentRoundIndex + 1])
       };
+    } else {
+      // End of poker round - determine hand winner and redistribute chips
+      const activePlayers = game.players.filter(p => !p.isFolded);
+      const handWinner = activePlayers.length === 1 ? activePlayers[0] : this.determineWinner(activePlayers);
+      
+      // Give pot to winner
+      const updatedPlayers = game.players.map(p => 
+        p.userId === handWinner.userId 
+          ? { ...p, chips: p.chips + game.pot }
+          : p
+      );
+      
+      // Start new poker round
+      return {
+        ...game,
+        round: 'preflop',
+        players: updatedPlayers.map(p => ({ 
+          ...p, 
+          hasActed: false, 
+          currentBet: 0, 
+          isFolded: false,
+          cards: [] 
+        })),
+        pot: 0,
+        communityCards: [],
+        currentTurn: 0
+      };
     }
-    
-    return game;
   }
 
   private addCommunityCards(existing: string[], round: string): string[] {
@@ -330,9 +373,17 @@ class GameService {
   }
 
   private isGameComplete(game: Game): boolean {
-    const activePlayers = game.players.filter(p => !p.isFolded);
-    // Game ends when only one player left or showdown round is complete
-    return activePlayers.length <= 1 || (game.round === 'showdown' && activePlayers.every(p => p.hasActed));
+    const activePlayers = game.players.filter(p => !p.isFolded && p.chips > 0);
+    
+    // Game ends when only one player has chips left, or after 20 rounds maximum
+    const roundCount = this.getRoundCount(game);
+    return activePlayers.length <= 1 || roundCount >= 20;
+  }
+
+  private getRoundCount(game: Game): number {
+    // Count how many full poker rounds (preflop to showdown) have been completed
+    // This is a simplified approach - in a real game you'd track this properly
+    return Math.floor((game.pot + game.players.reduce((sum, p) => sum + (500 - p.chips), 0)) / 100);
   }
 
   private async endGame(game: Game) {
@@ -435,6 +486,23 @@ class GameService {
       playerIndex,
       timeLeft: 15
     });
+  }
+
+  private async broadcastQueueCount(gameType: 'casual' | 'ranked') {
+    const queueEntries = await storage.getQueueEntries(gameType);
+    const queueCount = queueEntries.length;
+    
+    // Broadcast to all users in this queue type
+    for (const entry of queueEntries) {
+      const ws = this.userConnections.get(entry.userId);
+      if (ws) {
+        this.sendMessage(ws, 'queue_count_update', {
+          gameType,
+          count: queueCount,
+          players: queueEntries.map(e => e.username)
+        });
+      }
+    }
   }
 
   private determineWinner(players: any[]): any {

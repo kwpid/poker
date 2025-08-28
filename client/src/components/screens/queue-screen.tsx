@@ -4,7 +4,7 @@ import { useGame } from '@/hooks/use-game';
 import { useAuth } from '@/hooks/use-auth';
 
 export function QueueScreen() {
-  const { queueData, queueTime, leaveQueue } = useGame();
+  const { queueData, queueTime, leaveQueue, queueCount, queuePlayers } = useGame();
   const { user } = useAuth();
 
   const formatTime = (seconds: number) => {
@@ -52,8 +52,10 @@ export function QueueScreen() {
             <CardContent className="p-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <div className="text-muted-foreground">Players</div>
-                  <div className="font-semibold">2-6</div>
+                  <div className="text-muted-foreground">In Queue</div>
+                  <div className="font-semibold text-accent" data-testid="queue-count">
+                    {queueCount}/6 players
+                  </div>
                 </div>
                 <div>
                   <div className="text-muted-foreground">Your Rank</div>
@@ -62,6 +64,19 @@ export function QueueScreen() {
                   </div>
                 </div>
               </div>
+              
+              {queueCount > 1 && queuePlayers.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-muted">
+                  <div className="text-sm text-muted-foreground mb-2">Players Found:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {queuePlayers.map((playerName, index) => (
+                      <span key={index} className="px-2 py-1 bg-primary/20 rounded text-xs font-medium">
+                        {playerName}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
