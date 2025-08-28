@@ -4,7 +4,7 @@ import { z } from "zod";
 export const insertUserSchema = z.object({
   username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9]+$/, "English characters only, no spaces"),
   email: z.string().email().optional(),
-  password: z.string().min(6),
+  password: z.string().min(6).optional(),
   firebaseUid: z.string(),
 });
 

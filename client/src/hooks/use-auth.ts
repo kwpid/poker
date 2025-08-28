@@ -19,6 +19,8 @@ export function useAuth() {
           if (userData) {
             setUser(userData as User);
             setNeedsUsername(false);
+            // Sync user with server
+            await syncUserWithServer(userData as User);
           } else {
             setNeedsUsername(true);
           }
@@ -73,9 +75,37 @@ export function useAuth() {
       const userData = await getUserData(firebaseUser.uid);
       setUser(userData as User);
       setNeedsUsername(false);
+      // Sync user with server
+      if (userData) {
+        await syncUserWithServer(userData as User);
+      }
     } catch (error) {
       console.error('Complete Google signup error:', error);
       throw error;
+    }
+  };
+
+  const syncUserWithServer = async (userData: User) => {
+    try {
+      const response = await fetch('/api/user/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firebaseUid: userData.firebaseUid,
+          username: userData.username,
+          email: userData.email,
+        }),
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to sync user with server');
+      } else {
+        console.log('User synced with server successfully');
+      }
+    } catch (error) {
+      console.error('User sync error:', error);
     }
   };
 

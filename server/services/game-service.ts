@@ -8,16 +8,26 @@ class GameService {
   private userConnections: Map<string, WebSocket> = new Map(); // userId -> ws
   private gameConnections: Map<string, Set<WebSocket>> = new Map(); // gameId -> Set<ws>
 
-  async joinQueue(ws: WebSocket, gameType: 'casual' | 'ranked', userId: string) {
+  async joinQueue(ws: WebSocket, gameType: 'casual' | 'ranked', userId: string, userData?: any) {
     try {
       console.log(`Attempting to join queue: ${gameType} for user ${userId}`);
       
-      const user = await storage.getUserByFirebaseUid(userId);
+      let user = await storage.getUserByFirebaseUid(userId);
       console.log('Found user:', user ? user.username : 'NOT FOUND');
       
+      if (!user && userData) {
+        console.log('Creating new user from provided data');
+        user = await storage.createUser({
+          username: userData.username,
+          email: userData.email,
+          firebaseUid: userId,
+        });
+        console.log('Created user:', user.username);
+      }
+      
       if (!user) {
-        console.log('User not found in storage');
-        this.sendError(ws, 'User not found');
+        console.log('User not found in storage and no userData provided');
+        this.sendError(ws, 'User not found. Please ensure you are logged in.');
         return;
       }
 

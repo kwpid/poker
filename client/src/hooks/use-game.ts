@@ -75,7 +75,15 @@ export function useGame() {
   const joinQueue = useCallback((gameType: 'casual' | 'ranked') => {
     if (!user) return;
     console.log('Joining queue:', gameType, user.firebaseUid);
-    gameSocket.send('join_queue', { gameType, userId: user.firebaseUid });
+    gameSocket.send('join_queue', { 
+      gameType, 
+      userId: user.firebaseUid,
+      userData: {
+        username: user.username,
+        email: user.email,
+        firebaseUid: user.firebaseUid
+      }
+    });
   }, [user]);
 
   const setNavigation = useCallback((callback: (screen: 'auth' | 'menu' | 'queue' | 'game' | 'settings' | 'stats') => void) => {

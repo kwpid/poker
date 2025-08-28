@@ -24,7 +24,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         switch (type) {
           case 'join_queue':
-            await gameService.joinQueue(ws, payload.gameType, payload.userId);
+            await gameService.joinQueue(ws, payload.gameType, payload.userId, payload.userData);
             break;
           
           case 'leave_queue':
@@ -81,6 +81,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(user);
     } catch (error) {
       console.error('Create user error:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // User sync endpoint to sync Firebase users to server storage
+  app.post('/api/user/sync', async (req, res) => {
+    try {
+      const { firebaseUid, username, email } = req.body;
+      
+      if (!firebaseUid || !username) {
+        return res.status(400).json({ message: 'Firebase UID and username are required' });
+      }
+      
+      // Check if user already exists
+      let user = await storage.getUserByFirebaseUid(firebaseUid);
+      
+      if (!user) {
+        // Create new user
+        user = await storage.createUser({
+          username,
+          email,
+          firebaseUid,
+        });
+        console.log('Synced new user to server storage:', user.username);
+      }
+      
+      res.json(user);
+    } catch (error) {
+      console.error('User sync error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
