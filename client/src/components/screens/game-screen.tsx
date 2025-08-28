@@ -35,6 +35,14 @@ export function GameScreen() {
   const handleBet = () => {
     makeMove('bet', betAmount[0]);
   };
+  
+  const handleCall = () => {
+    makeMove('call');
+  };
+  
+  const handleRaise = () => {
+    makeMove('raise', betAmount[0]);
+  };
 
   const handleLeaveGame = () => {
     if (window.confirm('Are you sure you want to leave the game?')) {
@@ -139,12 +147,13 @@ export function GameScreen() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3">
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   variant="destructive"
                   onClick={handleFold}
                   disabled={!isMyTurn}
                   data-testid="button-fold"
+                  className="animate-fade-in"
                 >
                   <i className="fas fa-times mr-2"></i>Fold
                 </Button>
@@ -153,11 +162,29 @@ export function GameScreen() {
                   onClick={handleCheck}
                   disabled={!isMyTurn}
                   data-testid="button-check"
+                  className="animate-fade-in"
                 >
                   <i className="fas fa-check mr-2"></i>Check
                 </Button>
                 <Button
+                  variant="outline"
+                  onClick={handleCall}
+                  disabled={!isMyTurn}
+                  data-testid="button-call"
+                  className="animate-fade-in"
+                >
+                  <i className="fas fa-phone mr-2"></i>Call
+                </Button>
+                <Button
                   className="neon-glow"
+                  onClick={handleRaise}
+                  disabled={!isMyTurn || betAmount[0] <= 0}
+                  data-testid="button-raise"
+                >
+                  <i className="fas fa-arrow-up mr-2"></i>Raise
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={handleBet}
                   disabled={!isMyTurn || betAmount[0] <= 0}
                   data-testid="button-bet"

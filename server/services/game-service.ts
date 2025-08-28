@@ -51,7 +51,15 @@ class GameService {
       console.log('Sending queue_joined message');
       this.sendMessage(ws, 'queue_joined', queueEntry);
 
-      // Broadcast updated queue count to all players in this game type
+      // Send initial queue count to the player who just joined
+      const currentQueueEntries = await storage.getQueueEntries(gameType);
+      this.sendMessage(ws, 'queue_count_update', {
+        gameType,
+        count: currentQueueEntries.length,
+        players: currentQueueEntries.map(e => e.username)
+      });
+
+      // Broadcast updated queue count to all other players in this game type
       await this.broadcastQueueCount(gameType);
 
       // Try to match players
@@ -249,17 +257,39 @@ class GameService {
           break;
 
         case 'bet':
+        case 'raise':
           if (!amount || amount > player.chips) {
             this.sendError(ws, 'Invalid bet amount');
             return;
           }
+          
+          // For Texas Hold'em, validate minimum bet/raise
+          const currentHighBet = Math.max(...game.players.map(p => p.currentBet));
+          if (amount < Math.max(10, currentHighBet * 2)) {
+            this.sendError(ws, 'Bet too small');
+            return;
+          }
+          
           updatedGame.players[playerIndex] = {
             ...player,
             chips: player.chips - amount,
-            currentBet: amount,
+            currentBet: player.currentBet + amount,
             hasActed: true,
           };
           updatedGame.pot += amount;
+          break;
+          
+        case 'call':
+          const callAmount = Math.max(...game.players.map(p => p.currentBet)) - player.currentBet;
+          const actualCall = Math.min(callAmount, player.chips);
+          
+          updatedGame.players[playerIndex] = {
+            ...player,
+            chips: player.chips - actualCall,
+            currentBet: player.currentBet + actualCall,
+            hasActed: true,
+          };
+          updatedGame.pot += actualCall;
           break;
 
         default:
@@ -387,8 +417,13 @@ class GameService {
   }
 
   private async endGame(game: Game) {
-    const activePlayers = game.players.filter(p => !p.isFolded);
+    const activePlayers = game.players.filter(p => !p.isFolded && p.chips > 0);
     const winner = activePlayers.length === 1 ? activePlayers[0] : this.determineWinner(activePlayers);
+    
+    if (!winner) {
+      console.error('No winner found for game:', game.id);
+      return;
+    }
     
     // Calculate ELO changes for ranked games
     let eloChanges: Record<string, number> = {};
@@ -418,7 +453,24 @@ class GameService {
     });
 
     if (completedGame) {
-      this.broadcastToGame(game.id, 'game_ended', completedGame);
+      // Create detailed game result for the end screen
+      const gameResult = {
+        winner: winner.username,
+        winnerUserId: winner.userId,
+        players: game.players.map(p => ({
+          userId: p.userId,
+          username: p.username,
+          finalChips: p.chips,
+          eloChange: eloChanges[p.userId] || 0
+        })),
+        gameType: game.type,
+        roundsPlayed: this.getRoundCount(game)
+      };
+      
+      this.broadcastToGame(game.id, 'game_ended', {
+        ...completedGame,
+        gameResult
+      });
     }
 
     // Clean up game connections and timers

@@ -10,11 +10,13 @@ import { QueueScreen } from "@/components/screens/queue-screen";
 import { GameScreen } from "@/components/screens/game-screen";
 import { SettingsScreen } from "@/components/screens/settings-screen";
 import { StatsScreen } from "@/components/screens/stats-screen";
+import { GameEndScreen } from "@/components/screens/game-end-screen";
 
-type Screen = 'auth' | 'menu' | 'queue' | 'game' | 'settings' | 'stats';
+type Screen = 'auth' | 'menu' | 'queue' | 'game' | 'settings' | 'stats' | 'game-end';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('auth');
+  const [gameResult, setGameResult] = useState<any>(null);
   const { user, loading } = useAuth();
   const { isInQueue, currentGame, setNavigation } = useGame();
 
@@ -32,7 +34,10 @@ function App() {
     }
   }, [user, loading, isInQueue, currentGame, currentScreen]);
 
-  const handleNavigate = (screen: Screen) => {
+  const handleNavigate = (screen: Screen, result?: any) => {
+    if (screen === 'game-end' && result) {
+      setGameResult(result);
+    }
     setCurrentScreen(screen);
   };
 
@@ -66,6 +71,8 @@ function App() {
         return <SettingsScreen onNavigate={handleNavigate} />;
       case 'stats':
         return <StatsScreen onNavigate={handleNavigate} />;
+      case 'game-end':
+        return <GameEndScreen gameResult={gameResult} onBackToMenu={() => handleNavigate('menu')} />;
       default:
         return <MainMenu onNavigate={handleNavigate} />;
     }

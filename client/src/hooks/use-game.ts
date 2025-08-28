@@ -53,10 +53,15 @@ export function useGame() {
       setCurrentGame(game);
     };
 
-    const handleGameEnded = () => {
+    const handleGameEnded = (data: any) => {
       setCurrentGame(null);
       setTurnTimeLeft(0);
       setGameNotifications([]);
+      
+      // Navigate to game end screen with results
+      if (data.gameResult && navigationCallback) {
+        navigationCallback('game-end', data.gameResult);
+      }
     };
 
     const handlePlayerAction = (data: any) => {

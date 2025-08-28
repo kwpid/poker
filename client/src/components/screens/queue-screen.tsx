@@ -19,10 +19,10 @@ export function QueueScreen() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="glass-card w-full max-w-md text-center">
+      <Card className="glass-card w-full max-w-md text-center animate-bounce-in">
         <CardContent className="p-8">
           <div className="mb-6">
-            <i className="fas fa-search text-4xl text-primary mb-4 animate-pulse"></i>
+            <i className="fas fa-search text-4xl text-primary mb-4 animate-spin-slow"></i>
             <h2 className="text-2xl font-bold mb-2">Finding Match</h2>
             <p className="text-muted-foreground">
               Searching for <span className="text-primary font-semibold capitalize" data-testid="queue-type">
@@ -66,11 +66,15 @@ export function QueueScreen() {
               </div>
               
               {queueCount > 1 && queuePlayers.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-muted">
+                <div className="mt-4 pt-4 border-t border-muted animate-fade-in">
                   <div className="text-sm text-muted-foreground mb-2">Players Found:</div>
                   <div className="flex flex-wrap gap-2">
                     {queuePlayers.map((playerName, index) => (
-                      <span key={index} className="px-2 py-1 bg-primary/20 rounded text-xs font-medium">
+                      <span 
+                        key={index} 
+                        className="px-2 py-1 bg-primary/20 rounded text-xs font-medium animate-slide-in"
+                        style={{ animationDelay: `${index * 0.1}s` }}
+                      >
                         {playerName}
                       </span>
                     ))}
