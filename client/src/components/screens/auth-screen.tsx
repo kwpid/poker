@@ -21,6 +21,10 @@ export function AuthScreen() {
       await loginWithGoogle();
       if (!needsUsername) {
         toast({ title: "Welcome back!", description: "Successfully logged in with Google." });
+        // Refresh the page after successful login
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       }
     } catch (error: any) {
       toast({
@@ -56,6 +60,10 @@ export function AuthScreen() {
     try {
       await completeGoogleSignup(formData.username);
       toast({ title: "Account setup complete!", description: "Welcome to PokerElo!" });
+      // Refresh the page after successful signup
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (error: any) {
       toast({
         title: "Error",
